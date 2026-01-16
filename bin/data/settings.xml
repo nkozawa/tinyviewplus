@@ -1,0 +1,31 @@
+<system>
+    <sysStat>0</sysStat>
+    <speechJpn>1</speechJpn>
+    <allFrameDetect>1</allFrameDetect>
+    <minimumGateCount>2</minimumGateCount>
+    <smallSizeGateCheck>1</smallSizeGateCheck>
+</system>
+<view>
+    <fullscreen>0</fullscreen>
+    <camTrim>0</camTrim>
+    <camFrame>0</camFrame>
+    <bgImage>system/background.png</bgImage>
+    <lapHistMode>2</lapHistMode>
+    <pilotInfoSize>30</pilotInfoSize>
+</view>
+<oscMonitor>
+    <enabled>1</enabled>
+    <host>127.0.0.1</host>
+    <port>4001</port>
+</oscMonitor>
+<race>
+    <arMode>1</arMode>
+    <duraSecs>0</duraSecs>
+    <duraLaps>10</duraLaps>
+    <lapAfterTmo>0</lapAfterTmo>
+    <minLapTime>1</minLapTime>
+    <staggStart>0</staggStart>
+</race>
+<aruco>
+    <flickerLength>100</flickerLength>
+</aruco>
