@@ -13,7 +13,7 @@
 /* ---------- definitions ---------- */
 
 // system
-#define APP_VER         "v0.9.33 beta7-NG"
+#define APP_VER         "v0.9.33 beta6-NG3"
 #define DEBUG_ENABLED   false
 #define HELP_LINES      35  // must be <= OVLTXT_LINES
 #define SCENE_INIT      0
@@ -40,12 +40,14 @@
 #define SNM_OSCMON_ENA  "oscMonitor:enabled"
 #define SNM_OSCMON_HOST "oscMonitor:host"
 #define SNM_OSCMON_PORT "oscMonitor:port"
+#define SNM_FLICKER_LENGTH "aruco:flickerLength"
 #define SNM_VIEW_FLLSCR "view:fullscreen"
 #define SNM_VIEW_BGIMG  "view:bgImage"
 #define SNM_VIEW_CAMTRM "view:camTrim"
 #define SNM_VIEW_4CAMHOR "camera:fourCamHorizontal"
 #define SNM_VIEW_CAMFRM "view:camFrame"
 #define SNM_VIEW_LAPHST "view:lapHistMode"
+#define SNM_VIEW_P_INFO_SZ "view:pilotInfoSize"
 #define SNM_RACE_ARMODE "race:arMode"
 #define SNM_RACE_DRSECS "race:duraSecs"
 #define SNM_RACE_DRLAPS "race:duraLaps"
@@ -268,6 +270,8 @@ public:
     float lapHistElpTime[ARAP_MAX_RLAPS + 1];
     int flickerCount;
     int flickerValidCount;
+    float flickerEndtime;
+    float flickerValidEndtime;
     int racePosition;
     // QR reader
     bool qrScanned;
@@ -314,6 +318,7 @@ public:
 
 // -- splash --
 void setupInit();
+void reloadFonts();
 void loadWallImage(string);
 void loadSettingsFile();
 void saveSettingsFile();

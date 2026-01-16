@@ -43,6 +43,8 @@ int cameraLapHistMode;
 bool cameraFrameEnabled;
 int hideCursorTimer;
 bool isMultiView;
+int pilotInfoSize;
+float pilotInfoScale;
 // osc
 ofxOscReceiver oscReceiver;
 ofxOscSender oscSender;
@@ -58,6 +60,7 @@ int raceDuraSecs;
 int nextNotifyRemainSecs;
 int raceDuraLaps;
 int minLapTime;
+int flickerLength;
 float elapsedTime;
 bool useStartGate;
 int raceResultTimer;
@@ -82,6 +85,16 @@ int gateCountThreshold;
 
 int gateDetectSmallSize;
 //--------------------------------------------------------------
+void reloadFonts() {
+    myFontNumber.load(FONT_P_FILE, NUMBER_HEIGHT * pilotInfoScale);
+    myFontLabel.load(FONT_P_FILE, LABEL_HEIGHT * pilotInfoScale);
+    myFontLap.load(FONT_P_FILE, LAP_HEIGHT * pilotInfoScale);
+    myFontLapHist.load(FONT_P_FILE, LAPHIST_HEIGHT);
+    myFontNumberSub.load(FONT_P_FILE, (NUMBER_HEIGHT / 2) * pilotInfoScale);
+    myFontLabelSub.load(FONT_P_FILE, (LABEL_HEIGHT / 2) * pilotInfoScale);
+    myFontLapSub.load(FONT_P_FILE, (LAP_HEIGHT / 2) * pilotInfoScale);
+}
+
 void setupInit() {
     // system
     ofSetEscapeQuitsApp(false);
@@ -99,13 +112,9 @@ void setupInit() {
     ofBackground(0, 0, 0);
     ofSetVerticalSync(VERTICAL_SYNC);
     ofSetFrameRate(FRAME_RATE);
-    myFontNumber.load(FONT_P_FILE, NUMBER_HEIGHT);
-    myFontLabel.load(FONT_P_FILE, LABEL_HEIGHT);
-    myFontLap.load(FONT_P_FILE, LAP_HEIGHT);
-    myFontLapHist.load(FONT_P_FILE, LAPHIST_HEIGHT);
-    myFontNumberSub.load(FONT_P_FILE, NUMBER_HEIGHT / 2);
-    myFontLabelSub.load(FONT_P_FILE, LABEL_HEIGHT / 2);
-    myFontLapSub.load(FONT_P_FILE, LAP_HEIGHT / 2);
+    pilotInfoSize = 100;
+    pilotInfoScale = 1.0f;
+    reloadFonts();
     myFontInfo1m.load(FONT_M_FILE, INFO_HEIGHT);
     myFontInfo1p.load(FONT_P_FILE, INFO_HEIGHT);
     myFontInfoWatch.load(FONT_M_FILE, WATCH_HEIGHT);
@@ -142,6 +151,7 @@ void setupInit() {
     arLapMode = DFLT_ARAP_MODE;
     minLapTime = DFLT_ARAP_MNLAP;
     raceDuraSecs = DFLT_ARAP_RSECS;
+    flickerLength = 100;
     nextNotifyRemainSecs = -1;
     lapAfterTmoEnabled = DFLT_ARAP_LAPTO;
     raceDuraLaps = DFLT_ARAP_RLAPS;
@@ -213,12 +223,20 @@ void loadSettingsFile() {
     cameraTrimEnabled = xmlSettings.getValue(SNM_VIEW_CAMTRM, cameraTrimEnabled);
     // camera frame visibility
     cameraFrameEnabled = xmlSettings.getValue(SNM_VIEW_CAMFRM, cameraFrameEnabled);
+    // pilot info size
+    pilotInfoSize = xmlSettings.getValue(SNM_VIEW_P_INFO_SZ, pilotInfoSize);
+    if (pilotInfoSize < 0) pilotInfoSize = 0;
+    if (pilotInfoSize > 100) pilotInfoSize = 100;
+    pilotInfoScale = (float)pilotInfoSize / 100.0f;
+    reloadFonts();
     // lap history view
     cameraLapHistMode = xmlSettings.getValue(SNM_VIEW_LAPHST, cameraLapHistMode);
 
     // RACE
     // AR lap timer mode
     arLapMode = xmlSettings.getValue(SNM_RACE_ARMODE, arLapMode);
+    // flicker length
+    flickerLength = xmlSettings.getValue(SNM_FLICKER_LENGTH, flickerLength);
     // race duration (time, laps)
     raceDuraSecs = xmlSettings.getValue(SNM_RACE_DRSECS, raceDuraSecs);
     raceDuraLaps = xmlSettings.getValue(SNM_RACE_DRLAPS, raceDuraLaps);
@@ -257,12 +275,16 @@ void saveSettingsFile() {
     xmlSettings.setValue(SNM_VIEW_CAMTRM, cameraTrimEnabled);
     // camera frame visibility
     xmlSettings.setValue(SNM_VIEW_CAMFRM, cameraFrameEnabled);
+    // pilot info size
+    xmlSettings.setValue(SNM_VIEW_P_INFO_SZ, pilotInfoSize);
     // lap history view mode
     xmlSettings.setValue(SNM_VIEW_LAPHST, cameraLapHistMode);
 
     // RACE
     // AR lap timer mode
     xmlSettings.setValue(SNM_RACE_ARMODE, arLapMode);
+    // flicker length
+    xmlSettings.setValue(SNM_FLICKER_LENGTH, flickerLength);
     // race duration (time, laps)
     xmlSettings.setValue(SNM_RACE_DRSECS, raceDuraSecs);
     xmlSettings.setValue(SNM_RACE_DRLAPS, raceDuraLaps);
@@ -563,7 +585,7 @@ void ofApp::update() {
             }
             // finish race by time
             // (do not wait for lap after time limit)
-            if (lapAfterTmoEnabled == false && relp >= raceDuraSecs) {
+            if (lapAfterTmoEnabled == false && relp >= (raceDuraSecs + flickerLength * 0.001f)) {
                 if (isMultiView == true) {
                     grabberUpdateResizeMulti();
                     for (int i = 0; i < cameraNum; i++) {
@@ -619,31 +641,42 @@ void ofApp::update() {
             // all markers
             int anum = camView[i].aruco.getNumMarkers();
             if (anum == 0 && camView[i].foundMarkerNum > 0) {
+                if (camView[i].flickerCount == 0) {
+                    camView[i].flickerEndtime = elp + flickerLength * 0.001f;
+                }
                 camView[i].flickerCount++;
-                if (camView[i].flickerCount <= 3) {
+                if ((elp < camView[i].flickerEndtime) && (camView[i].flickerEndtime > 0)) {
                     anum = camView[i].foundMarkerNum; // anti flicker
                 } else {
                     camView[i].flickerCount = 0;
+                    camView[i].flickerEndtime = 0;
                 }
             } else {
                 camView[i].flickerCount = 0;
+                camView[i].flickerEndtime = 0;
             }
             // vaild markers
             int vnum = camView[i].aruco.getNumMarkersValidGate();
             if (vnum == 0 && camView[i].foundValidMarkerNum > 0) {
                 camView[i].flickerValidCount++;
-                if (camView[i].flickerValidCount <= 3) {
+                if (camView[i].flickerValidCount == 1) {
+                    camView[i].flickerValidEndtime = elp + flickerLength * 0.001f;
+                }
+                if ((elp < camView[i].flickerValidEndtime) && (camView[i].flickerValidEndtime > 0)) {
                     vnum = camView[i].foundValidMarkerNum; // anti flicker
                 } else {
                     camView[i].flickerValidCount = 0;
+                    camView[i].flickerValidEndtime = 0;
                 }
             } else {
                 camView[i].flickerValidCount = 0;
+                camView[i].flickerValidEndtime = 0;
             }
             // passed gate
             if (anum == 0 && camView[i].enoughMarkers == true
                 && ((arLapMode == ARAP_MODE_LOOSE) || (arLapMode == ARAP_MODE_NORM && camView[i].foundMarkerNum == camView[i].foundValidMarkerNum))) {
-                float lap = elp - camView[i].prevElapsedSec;
+                float passedTime = elp - (flickerLength * 0.001f);
+                float lap = passedTime - camView[i].prevElapsedSec;
                 if (camView[i].totalLaps >= (raceDuraLaps + (useStartGate == true ? 1 : 0))
                     || (raceDuraSecs > 0 && (camView[i].prevElapsedSec - WATCH_COUNT_SEC) >= raceDuraSecs)) {
                     // already finished
@@ -660,15 +693,15 @@ void ofApp::update() {
                 }
                 // record
                 int total = camView[i].totalLaps + 1;
-                camView[i].prevElapsedSec = elp;
+                camView[i].prevElapsedSec = passedTime;
                 camView[i].totalLaps = total;
                 camView[i].lastLapTime = lap;
                 camView[i].lapHistName[total - 1] = camView[i].labelString;
                 camView[i].lapHistLapTime[total - 1] = lap;
-                camView[i].lapHistElpTime[total - 1] = elp;
+                camView[i].lapHistElpTime[total - 1] = passedTime;
                 updateRacePositions();
                 if (total >= (raceDuraLaps + (useStartGate == true ? 1 : 0))
-                    || (raceDuraSecs > 0 && (elp - WATCH_COUNT_SEC) >= raceDuraSecs)) {
+                    || (raceDuraSecs > 0 && (passedTime - WATCH_COUNT_SEC) >= raceDuraSecs)) {
                     // finish by laps / time
                     camView[i].foundMarkerNum = 0;
                     camView[i].foundValidMarkerNum = 0;
@@ -967,15 +1000,15 @@ void drawCameraPilot(int cidx, bool issub) {
     if (issub == true) {
         fontnum = &myFontNumberSub;
         fontlp = &myFontLabelSub;
-        icnw = ICON_WIDTH / 2;
-        icnh = ICON_HEIGHT / 2;
-        marg = 7;
+        icnw = (ICON_WIDTH * pilotInfoScale) / 2;
+        icnh = (ICON_HEIGHT * pilotInfoScale) / 2;
+        marg = 7 * pilotInfoScale;
     } else {
         fontnum = &myFontNumber;
         fontlp = &myFontLabel;
-        icnw = ICON_WIDTH;
-        icnh = ICON_HEIGHT;
-        marg = 15;
+        icnw = ICON_WIDTH * pilotInfoScale;
+        icnh = ICON_HEIGHT * pilotInfoScale;
+        marg = 15 * pilotInfoScale;
     }
     offset = (cameraFrameEnabled == true) ? FRAME_LINEWIDTH : 0;
 
@@ -1028,7 +1061,7 @@ void drawCameraPilot(int cidx, bool issub) {
             break;
     }
     x = min(ofGetWidth(), camView[cidx].posX + camView[cidx].width) - (1 + fontlp->stringWidth(str));
-    x = x - (issub ? 5 : 10) - offset;
+    x = x - ((issub ? 5 : 10) * pilotInfoScale) - offset;
     drawStringWithShadow(fontlp, myColorWhite, myColorBGMiddle, str, x, camView[cidx].labelPosY + offset);
 }
 
@@ -1062,11 +1095,11 @@ void drawCameraLapTime(int idx, bool issub) {
             if (issub) {
                 drawStringWithShadow(&myFontLapSub, myColorWhite, myColorBGMiddle, sout,
                                      camView[i].lapPosX + offset,
-                                     camView[i].lapPosY + offset + (LAP_HEIGHT / 2) + 5);
+                                     camView[i].lapPosY + offset + ((LAP_HEIGHT / 2) * pilotInfoScale) + 5 * pilotInfoScale);
             } else {
                 drawStringWithShadow(&myFontLap, myColorWhite, myColorBGMiddle, sout,
                                      camView[i].lapPosX,
-                                     camView[i].lapPosY + offset + LAP_HEIGHT + 10);
+                                     camView[i].lapPosY + offset + LAP_HEIGHT * pilotInfoScale + 10 * pilotInfoScale);
             }
             sout = "TotalTime: ";
             if (useStartGate == true) {
@@ -1077,11 +1110,11 @@ void drawCameraLapTime(int idx, bool issub) {
             if (issub) {
                 drawStringWithShadow(&myFontLapSub, myColorWhite, myColorBGMiddle, sout,
                                      camView[i].lapPosX + offset,
-                                     camView[i].lapPosY + offset + LAP_HEIGHT + 10);
+                                     camView[i].lapPosY + offset + LAP_HEIGHT * pilotInfoScale + 10 * pilotInfoScale);
             } else {
                 drawStringWithShadow(&myFontLap, myColorWhite, myColorBGMiddle, sout,
                                      camView[i].lapPosX,
-                                     camView[i].lapPosY + offset + (LAP_HEIGHT * 2) + 20);
+                                     camView[i].lapPosY + offset + (LAP_HEIGHT * 2 * pilotInfoScale) + 20 * pilotInfoScale);
             }
         }
     } else {
@@ -1336,8 +1369,15 @@ void ofApp::draw() {
     // debug
     if (sysStatEnabled == true) {
         int x = 10;
-        int y = 0;
         int h = 15;
+        int y;
+        if (b4CamHorizontal == true) {
+            int lines = 2 + cameraNum;
+            y = ofGetHeight() - (lines * h) - 5;
+        } else {
+            y = 0;
+        }
+
         // screen fps
         ofSetColor(myColorYellow);
         ofDrawBitmapString("Screen FPS: " + ofToString(ofGetFrameRate()), x, y += h);
@@ -1584,14 +1624,22 @@ void mouseReleasedOverlayNone(int x, int y, int button) {
         if (camView[i].visible == false || camView[i].moveSteps > 0) {
             continue;
         }
+        bool issub = (cameraIdxSolo != -1 && i != cameraIdxSolo);
+        int icnw = ICON_WIDTH * pilotInfoScale;
+        int icnh = ICON_HEIGHT * pilotInfoScale;
+        if (issub) {
+            icnw /= 2;
+            icnh /= 2;
+        }
+
         // icon
-        if (x >= camView[i].iconPosX && x <= (camView[i].iconPosX + ICON_WIDTH)
-            && y >= camView[i].iconPosY && y <= (camView[i].iconPosY + ICON_HEIGHT)) {
+        if (x >= camView[i].iconPosX && x <= (camView[i].iconPosX + icnw)
+            && y >= camView[i].iconPosY && y <= (camView[i].iconPosY + icnh)) {
             changeCameraIcon(i + 1);
         }
         // label
         if (x >= camView[i].labelPosX && x <= (camView[i].posX + camView[i].width)
-            && y >= camView[i].posY && y <= (camView[i].iconPosY + ICON_HEIGHT)) {
+            && y >= camView[i].posY && y <= (camView[i].iconPosY + icnh)) {
             changeCameraLabel(i + 1);
         }
     }
@@ -2224,28 +2272,28 @@ void setViewParams() {
         if (idx == -1) {
             break;
         }
-        camView[idx].basePosXTarget = max(0, camView[idx].posXTarget) + BASE_MARGIN_X;
-        camView[idx].basePosYTarget = max(0, camView[idx].posYTarget) + BASE_MARGIN_Y;
-        camView[idx].baseWidth = BASE_WIDTH;
-        camView[idx].baseHeight = BASE_HEIGHT;
-        camView[idx].numberPosXTarget = max(0, camView[idx].posXTarget) + NUMBER_MARGIN_X;
-        camView[idx].numberPosYTarget = max(0, camView[idx].posYTarget) + NUMBER_MARGIN_Y;
-        camView[idx].iconPosXTarget = max(0, camView[idx].posXTarget) + ICON_MARGIN_X;
-        camView[idx].iconPosYTarget = max(0, camView[idx].posYTarget) + ICON_MARGIN_Y;
-        camView[idx].labelPosXTarget = max(0, camView[idx].posXTarget) + LABEL_MARGIN_X;
-        camView[idx].labelPosYTarget = max(0, camView[idx].posYTarget) + LABEL_MARGIN_Y;
-        camView[idx].lapPosXTarget = max(0, camView[idx].posXTarget) + LAP_MARGIN_X;
-        camView[idx].lapPosYTarget = max(0, camView[idx].posYTarget) + LAP_MARGIN_Y;
+        camView[idx].basePosXTarget = max(0, camView[idx].posXTarget) + BASE_MARGIN_X * pilotInfoScale;
+        camView[idx].basePosYTarget = max(0, camView[idx].posYTarget) + BASE_MARGIN_Y * pilotInfoScale;
+        camView[idx].baseWidth = BASE_WIDTH * pilotInfoScale;
+        camView[idx].baseHeight = BASE_HEIGHT * pilotInfoScale;
+        camView[idx].numberPosXTarget = max(0, camView[idx].posXTarget) + NUMBER_MARGIN_X * pilotInfoScale;
+        camView[idx].numberPosYTarget = max(0, camView[idx].posYTarget) + NUMBER_MARGIN_Y * pilotInfoScale;
+        camView[idx].iconPosXTarget = max(0, camView[idx].posXTarget) + ICON_MARGIN_X * pilotInfoScale;
+        camView[idx].iconPosYTarget = max(0, camView[idx].posYTarget) + ICON_MARGIN_Y * pilotInfoScale;
+        camView[idx].labelPosXTarget = max(0, camView[idx].posXTarget) + LABEL_MARGIN_X * pilotInfoScale;
+        camView[idx].labelPosYTarget = max(0, camView[idx].posYTarget) + LABEL_MARGIN_Y * pilotInfoScale;
+        camView[idx].lapPosXTarget = max(0, camView[idx].posXTarget) + LAP_MARGIN_X * pilotInfoScale;
+        camView[idx].lapPosYTarget = max(0, camView[idx].posYTarget) + LAP_MARGIN_Y * pilotInfoScale;
         if (cameraIdxSolo != -1 && idx != cameraIdxSolo) { // sub
             camView[idx].baseWidth = camView[idx].baseWidth / 2;
             camView[idx].baseHeight = camView[idx].baseHeight / 2;
-            camView[idx].numberPosXTarget = camView[idx].numberPosXTarget - (NUMBER_MARGIN_X / 2);
-            camView[idx].numberPosYTarget = camView[idx].numberPosYTarget - (NUMBER_MARGIN_Y / 2);
-            camView[idx].iconPosXTarget = camView[idx].iconPosXTarget - (ICON_MARGIN_X / 2);
-            camView[idx].labelPosXTarget = camView[idx].labelPosXTarget - (LABEL_MARGIN_X / 2);
-            camView[idx].labelPosYTarget = camView[idx].labelPosYTarget - (LABEL_MARGIN_Y / 2);
-            camView[idx].lapPosXTarget = camView[idx].lapPosXTarget - (LAP_MARGIN_X / 2);
-            camView[idx].lapPosYTarget = camView[idx].lapPosYTarget - (LAP_MARGIN_Y / 2);
+            camView[idx].numberPosXTarget = camView[idx].numberPosXTarget - (NUMBER_MARGIN_X * pilotInfoScale / 2);
+            camView[idx].numberPosYTarget = camView[idx].numberPosYTarget - (NUMBER_MARGIN_Y * pilotInfoScale / 2);
+            camView[idx].iconPosXTarget = camView[idx].iconPosXTarget - (ICON_MARGIN_X * pilotInfoScale / 2);
+            camView[idx].labelPosXTarget = camView[idx].labelPosXTarget - (LABEL_MARGIN_X * pilotInfoScale / 2);
+            camView[idx].labelPosYTarget = camView[idx].labelPosYTarget - (LABEL_MARGIN_Y * pilotInfoScale / 2);
+            camView[idx].lapPosXTarget = camView[idx].lapPosXTarget - (LAP_MARGIN_X * pilotInfoScale / 2);
+            camView[idx].lapPosYTarget = camView[idx].lapPosYTarget - (LAP_MARGIN_Y * pilotInfoScale / 2);
         }
         camView[idx].imageScale = (float)(camView[idx].width) / (float)CAMERA_WIDTH;
         if (camView[idx].isWide == true) {
@@ -2845,6 +2893,8 @@ void initRaceVars() {
         camView[i].enoughMarkers = false;
         camView[i].flickerCount = 0;
         camView[i].flickerValidCount = 0;
+        camView[i].flickerEndtime = 0;
+        camView[i].flickerValidEndtime = 0;
         camView[i].prevElapsedSec = WATCH_COUNT_SEC; // countdown
         camView[i].totalLaps = 0;
         camView[i].lastLapTime = 0;
