@@ -101,6 +101,7 @@ Set "enabled" to 1 to enable this feature. Set to 0 to disable.
 
 - Parameters
   - event ... "started" or "finished"
+  "timeup" (KozakFPV mod)
 - Example: Race has started
   - /v1/race/event "started"
 
@@ -151,5 +152,6 @@ This works at the start of the race and when changing labels.
   - totaltime ... Total time(minutes:seconds)
 - Example: Notify race result of camera 1(1st, 10 laps, 5.43 seconds, 62.13 seconds)
   - /v1/camera/1/lap "Whooper 1" 1 10 5.43 62.13
+
 
 This works at the end of the race.
