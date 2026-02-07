@@ -2786,6 +2786,8 @@ void speakRemainTime(int sec) {
     string str = "";
     bool jp = speechLangJpn;
     if (sec == 0) {
+        // kozakfpv
+        sendOscRaceEvent("timeup");
         if (jp == true) {
             str = "規定時間が経過しました";
         } else {
