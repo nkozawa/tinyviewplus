@@ -115,10 +115,15 @@
 #define BASE_MARGIN_Y   0
 #define BASE_WIDTH      20
 #define BASE_HEIGHT     50
-#define BASE_1_COLOR    201,58,64
-#define BASE_2_COLOR    160,194,56
-#define BASE_3_COLOR    0,116,191
-#define BASE_4_COLOR    248,128,23
+// KozakFPV
+// #define BASE_1_COLOR    201,58,64
+// #define BASE_2_COLOR    160,194,56
+// #define BASE_3_COLOR    0,116,191
+// #define BASE_4_COLOR    248,128,23
+#define BASE_1_COLOR    255,0,0        // red
+#define BASE_2_COLOR    0,255,0        // green
+#define BASE_3_COLOR    0,0,255        // blue
+#define BASE_4_COLOR    255,255,0      // yellow
 #define LAP_HEIGHT      20
 #define LAP_MARGIN_X    20
 #define LAP_MARGIN_Y    80
