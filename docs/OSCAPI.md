@@ -101,6 +101,7 @@ UDP4000番ポートでOSCパケットを受信します。
 
 - パラメーター
   - event ... "started"または"finished"
+  "timeup" (KozakFPV)
 - 例: レースの開始を通知する
   - /v1/race/event "started"
 
@@ -153,3 +154,4 @@ UDP4000番ポートでOSCパケットを受信します。
   - /v1/camera/1/lap "Whooper 1" 1 10 5.43 62.13
 
 レース終了時に通知します。
+
